@@ -11,7 +11,6 @@ app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.wi4y4.mongodb.net/?appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
@@ -25,10 +24,33 @@ async function run() {
         await client.connect();
         console.log("Connected to MongoDB!");
 
-        const database = client.db("yourDatabaseName");
-        const collection = database.collection("yourCollectionName");
+        const menuCollection = client.db("restaurant_manage").collection("menu");
+        const reviewCollection = client.db("restaurant_manage").collection("reviews");
+        const cartCollection = client.db("restaurant_manage").collection("carts");
 
-    } catch (error) {
+        app.get('/menu', async (req, res) => {
+            const result = await menuCollection.find().toArray();
+            res.send(result);
+        })
+        app.get('/reviews', async (req, res) => {
+            const result = await reviewCollection.find().toArray();
+            res.send(result);
+        })
+
+        //carts collection
+        app.post('/carts', async (req, res) => {
+            const cartItem = req.body;
+            const result = await cartCollection.insertOne(cartItem);
+            res.send(result);
+        })
+
+        app.get('/carts', async (req, res) => {
+            const result = await cartCollection.find().toArray();
+            res.send(result);
+        })
+
+    }
+    catch (error) {
         console.error("MongoDB connection error:", error);
     }
 }
