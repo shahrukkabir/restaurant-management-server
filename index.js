@@ -31,27 +31,14 @@ async function run() {
         const reviewCollection = client.db("restaurant_manage").collection("reviews");
         const cartCollection = client.db("restaurant_manage").collection("carts");
 
-        //jwt related api
+        // Generates a JWT token for the user, called during login or authentication from AuthProvider->onAuthStateChanged
         app.post('/jwt', async (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
             res.send({ token });
         })
 
-        //users related api : login and signup component
-        app.post('/users', async (req, res) => {
-            const user = req.body;
-            // insert email if user doesnt exists         
-            const query = { email: user.email }
-            const existUser = await userCollection.findOne(query);
-            if (existUser) {
-                return res.send({ message: 'user already exists', insertedId: null })
-            }
-            const result = await userCollection.insertOne(user);
-            res.send(result);
-        })
-
-        // middleware
+        // Middleware to verify JWT token and authenticate the user
         const verifyToken = (req, res, next) => {
             console.log('Inside Verify Token', req.headers);
             if (!req.headers.authorization) {
@@ -66,7 +53,8 @@ async function run() {
                 next();
             });
         };
-        //verify admin after veryfytoken
+
+        // Middleware to verify if the user is an admin after token verification
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
             const query = { email: email };
@@ -78,12 +66,7 @@ async function run() {
             next();
         }
 
-        // Load Users: AllUser component
-        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-            console.log(req.headers);
-            const result = await userCollection.find().toArray();
-            res.send(result);
-        });
+        // Checks if a user is an admin by email, called with token verification
         app.get('/users/admin/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             if (email !== req.decoded.email) {
@@ -98,7 +81,27 @@ async function run() {
             res.send({ admin });
         });
 
-        //Delete User Api : AllUser Component
+        // User signup API, called from Login and Signup components to register a new user
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            // insert email if user doesnt exists         
+            const query = { email: user.email }
+            const existUser = await userCollection.findOne(query);
+            if (existUser) {
+                return res.send({ message: 'user already exists', insertedId: null })
+            }
+            const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+
+        // Loads all users, called from AllUser component
+        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+            console.log(req.headers);
+            const result = await userCollection.find().toArray();
+            res.send(result);
+        });
+
+        // Deletes a user by ID, called from AllUser
         app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
@@ -106,6 +109,7 @@ async function run() {
             res.send(result);
         })
 
+        // Updates a user's role to admin, called from AllUser 
         app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -118,39 +122,41 @@ async function run() {
             res.send(result);
         })
 
-        //useMenu component
+        // Fetches all menu items, called from useMenu component
         app.get('/menu', async (req, res) => {
             const result = await menuCollection.find().toArray();
             res.send(result);
         })
-        //addItems component
+
+        // Adds a new item to the menu, called from AddItems 
         app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
             const item = req.body;
             const result = await menuCollection.insertOne(item);
             res.send(result);
         })
 
-        //Testimonial component
+        // Fetches all reviews from the reviews collection, called from Testimonial component
         app.get('/reviews', async (req, res) => {
             const result = await reviewCollection.find().toArray();
             res.send(result);
         })
 
-        //carts collection : FoodCard Component
+        // Adds a new item to the carts collection, called from FoodCard component
         app.post('/carts', async (req, res) => {
             const cartItem = req.body;
             const result = await cartCollection.insertOne(cartItem);
             res.send(result);
         })
 
-        // finds all cart items for a specific user by email : useCart Component
+        // Finds all cart items for a specific user by email, called from useCart component
         app.get('/carts', async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
             const result = await cartCollection.find(query).toArray();
             res.send(result);
         })
-        //Cart Component
+
+        // DELETE a cart item by ID, called from Cart component to remove an item from the cart
         app.delete('/carts/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
